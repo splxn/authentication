@@ -1,15 +1,18 @@
 "use strict";
 var express = require('express');
 var router = express.Router();
+var userController = require('../controllers/user');
+var sessionController = require('../controllers/session');
+var verifyToken = require('../middleware/verifytoken');
 
-var signupUser = require('../controllers/signup');
-var getUser = require('../controllers/getuser');
-var updateUser = require('../controllers/updateuser');
+router.get('/users', userController.get);
+router.post('/users', userController.post);
+router.patch('/users', userController.patch);
 
-router.get('/users', getUser);
+router.post('/sessions', sessionController.post);
 
-router.post('/users', signupUser);
+router.use(verifyToken);
 
-router.patch('/users', updateUser);
+router.get('/sessions', sessionController.get);
 
 module.exports = router;
