@@ -1,77 +1,59 @@
 "use strict";
 var User = require('../models/user');
+var StatusError = require('status-errors');
+var util = require('util');
 
 var userRoute = {
 
-  post: (req, res) => {
+  post: (req, res, next) => {
 
-    req.check({
-      email: {
-        notEmpty: true,
-        isEmail: {
-          errorMessage: 'Invalid Email'
+    var newUser = new User();
+    for (var field in req.body) {
+      console.log(req.body[field]);
+      if (field == Object) {
+        for (var prop in field) {
+          newUser[field][prop] = req.body[field][prop];
         }
-      },
-      firstName: {
-        notEmpty: true,
-        errorMessage: 'Invalid first name'
-      },
-      lastName: {
-        notEmpty: true,
-        errorMessage: 'Invalid last name'
-      },
-      password: {
-        notEmpty: true,
-        isLength: {
-          options: [{min: 6}],
-          errorMessage: 'Password must be at least 6 chars long'
-        },
-        errorMessage: 'Password required'
-      },
-      dateOfBirth: {
-        notEmpty: true,
-        isDate: {
-          errorMessage: 'Wrong date'
-        },
-        errorMessage: 'Date is required'
       }
-    });
-
-    var newUser = new User({
-      email: req.body.email,
-      firstName: req.body.firstName,
-      lastName: req.body.lastName,
-      dateOfBirth: req.body.dateOfBirth,
-      password: req.body.password,
-      createdAt: new Date()
-    });
-
+      newUser[field] = req.body[field];
+    }
     newUser.save((err) => {
       if (err) {
-        res.json(req.validationErrors());
+        next(new StatusError(400, "User already exists"));
+        return;
       } else {
         res.json({success: true, msg: 'User created successfully'});
       }
     });
-
   },
 
-  get: (req, res) => {
+  get: (req, res, next) => {
 
-    req.check({
-      email: {
-        notEmpty: true,
-        isEmail: {
-          errorMessage: 'Invalid Email'
-        },
-        errorMessage: 'Please type an email address'
+    return new Promise((resolve, reject) => {
+      req.check({
+        email: {
+          isEmail: {
+            errorMessage: 'Invalid Email'
+          }
+        }
+      });
+
+      if (req.validationErrors()) {
+        next(new StatusError(400, 'There have been validation errors: '
+          + util.inspect(req.validationErrors())));
+        return;
+      } else {
+        resolve(req);
       }
-    });
-
-    User.findOne({email: req.body.email})
+    })
+      .then((req) => {
+        User.findOne({
+          email: req.body.email
+        })
+      })
       .then((user) => {
         if (!user) {
-          res.status(403).send({success: false, msg: 'User not found'});
+          next(new StatusError(403, 'User not found'));
         } else {
           res.json({
             email: user.email,
@@ -81,87 +63,39 @@ var userRoute = {
           });
         }
       })
-      .catch((err) => {
-        next(err)
-      });
+      .catch((err) => next);
   },
 
-  patch: (req, res) => {
+  patch: (req, res, next) => {
 
-    req.check({
-      email: {
-        notEmpty: true,
-        isEmail: {
-          errorMessage: 'Invalid Email'
-        },
-        errorMessage: 'Please type an email address'
-      },
-      firstName: {
-        notEmpty: true,
-        errorMessage: 'Invalid first name'
-      },
-      lastName: {
-        notEmpty: true,
-        errorMessage: 'Invalid last name'
-      },
-      password: {
-        notEmpty: true,
-        isLength: {
-          options: [{min: 6}],
-          errorMessage: 'Password must be at least 6 chars long'
-        },
-        errorMessage: 'Password required'
-      },
-      dateOfBirth: {
-        notEmpty: true,
-        isDate: {
-          errorMessage: 'Wrong date'
-        },
-        errorMessage: 'Date is required'
-      },
-      lastLogged: {
-        notEmpty: false,
-        errorMessage: 'You cannot type this param'
-      },
-      createdAt: {
-        notEmpty: false,
-        errorMessage: 'You cannot type this param'
-      },
-      updatedAt: {
-        notEmpty: false,
-        errorMessage: 'You cannot type this param'
-      },
-      status: {
-        notEmpty: false,
-        errorMessage: 'You cannot type this param'
-      }
-    });
-
-    if (!req.validationErrors()) {
-      User.findOne({email: req.body.email})
-        .then((user) => {
-          if (!user) {
-            res.status(403).send({success: false, msg: 'User not found'});
-          } else {
-            user.firstName = req.body.firstName;
-            user.lastName = req.body.lastName;
-            user.dateOfBirth = req.body.dateOfBirth;
-            user.password = req.body.password;
-            user.save();
-
-            res.json({
-              email: user.email,
-              firstName: user.firstName,
-              lastName: user.lastName,
-              dateOfBirth: user.dateOfBirth
-            });
+    User.findOne({email: req.body.email})
+      .then((user) => {
+        if (!user) {
+          next(new StatusError(403, 'User not found'));
+        } else {
+          for (var field in req.body) {
+            console.log(req.body[field]);
+            if (field == Object) {
+              for (var prop in field) {
+                user[field][prop] = req.body[field][prop];
+              }
+            }
+            user[field] = req.body[field];
           }
-        })
-        .catch((err) => next(err))
-    } else {
-      res.json(req.validationErrors());
-    }
+          user.save();
+
+          res.json({
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            dateOfBirth: user.dateOfBirth
+          });
+        }
+      })
+      .catch((err) => next);
+
   }
 };
+
 
 module.exports = userRoute;

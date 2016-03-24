@@ -21,6 +21,14 @@ var UserSchema = new Schema({
     type: Date,
     required: true
   },
+  address: {
+    country: String,
+    city: String,
+    zip: Number
+  },
+  notes: {
+    type: Schema.Types.Mixed
+  },
   lastLogged: {
     type: Date
   },

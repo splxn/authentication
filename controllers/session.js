@@ -2,6 +2,7 @@
 var User = require('../models/user');
 var secret = require('../config/database').secret;
 var jwt = require('jsonwebtoken');
+var StatusError = require('status-errors');
 
 var sessionRoute = {
 
@@ -9,7 +10,7 @@ var sessionRoute = {
     res.json({
       success: true,
       message: "Current user info",
-      name: req.decoded._doc.firstName + ' ' + req.decoded._doc.firstName,
+      name: req.decoded._doc.firstName + ' ' + req.decoded._doc.lastName,
       email: req.decoded._doc.email
     })
   },
@@ -18,28 +19,29 @@ var sessionRoute = {
     User.findOne({email: req.body.email})
       .then((user) => {
         if (!user) {
-          res.status(422).send({"field": "email", "message": "User not found"})
-          throw new Error('User nor found');
+          next(new StatusError(401, 'Please type correct email'));
         } else {
           return user;
         }
       })
       .then((user) => user.comparePassword(req.body.password, (err, isMatch) => {
-        if (err) return res.status(401).send({message: 'Unauthorized'});
+        if (err) {
+          next(new StatusError(401, 'User not found'));
+        }
         if (isMatch && !err) {
           var token = jwt.sign(user, secret, {
             expiresIn: 1440
           });
-          res.json({
+          res.send({
             success: true,
             message: 'token successfully created',
             token: token
           });
         } else {
-          return res.status(422).send({"field": "password", "message": 'Wrong password'});
+          next(new StatusError(403, 'Wrong password'));
         }
       }))
-      .catch((err) => {next(err)});
+      .catch((err) => next);
   }
 };
 

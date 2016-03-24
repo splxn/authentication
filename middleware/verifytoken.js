@@ -1,6 +1,7 @@
 "use strict";
 var secret = require('../config/database').secret;
 var jwt = require('jsonwebtoken');
+var StatusError = require('status-errors');
 
 var verifyToken = (req, res, next) => {
 
@@ -10,7 +11,8 @@ var verifyToken = (req, res, next) => {
 
     jwt.verify(token, secret, (err, decoded) => {
       if (err) {
-        return res.json({ success: false, message: 'Failed to authenticate token.' });
+        next(new StatusError(401, 'Failed to authenticate token'));
+        return;
       } else {
         req.decoded = decoded;
         next();
@@ -18,10 +20,8 @@ var verifyToken = (req, res, next) => {
     });
 
   } else {
-    return res.status(403).send({
-      success: false,
-      message: 'No token provided.'
-    });
+    next(new StatusError(401, 'Token is required'));
+    return;
   }
 };
 
